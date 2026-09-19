@@ -21,6 +21,7 @@ import '../../common/widgets/chat_page.dart';
 import '../../models/file_model.dart';
 import '../../models/platform_model.dart';
 import '../../models/server_model.dart';
+import '../../novadx_brand.dart';
 
 class DesktopServerPage extends StatefulWidget {
   const DesktopServerPage({Key? key}) : super(key: key);
@@ -352,6 +353,7 @@ Widget buildConnectionCard(Client client) {
       crossAxisAlignment: CrossAxisAlignment.start,
       key: ValueKey(client.id),
       children: [
+        if (isNovadxClient()) novadxSessionBanner(context),
         _CmHeader(client: client),
         client.type_() == ClientType.file ||
                 client.type_() == ClientType.portForward ||

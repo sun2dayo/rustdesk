@@ -70,8 +70,16 @@ fn make_tray() -> hbb_common::ResultType<()> {
     } else {
         tray_menu.append_items(&[&open_i]).ok();
     }
-    let tooltip = |count: usize| {
-        if count == 0 {
+    // NovaDX: no agente, o tooltip diz ao utilizador quem gere o posto.
+    let novadx_agent = hbb_common::config::HARD_SETTINGS
+        .read()
+        .unwrap()
+        .get("novadx-variant")
+        .map_or(false, |v| v == "agente");
+    let tooltip = move |count: usize| {
+        if count == 0 && novadx_agent {
+            "NovaDX - posto gerido pela NovaDX (ola@novadx.pt)".to_owned()
+        } else if count == 0 {
             format!(
                 "{} {}",
                 crate::get_app_name(),

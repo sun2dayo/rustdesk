@@ -2109,7 +2109,10 @@ const NOVADX_KEY: &str = match option_env!("NOVADX_KEY") {
 fn novadx_builtin_config() -> HashMap<String, serde_json::Value> {
     // O nome da app não pode ter espaços: é usado sem aspas em `sc create` e `taskkill`.
     let mut config = serde_json::json!({
+        // lido pelo Flutter (novadx_brand.dart) e pela bandeja via HARD_SETTINGS
+        "novadx-variant": NOVADX_VARIANT,
         "override-settings": {
+            "hide-powered-by-me": "Y",
             "custom-rendezvous-server": NOVADX_SERVER,
             "relay-server": NOVADX_SERVER,
             "api-server": NOVADX_API_SERVER,
