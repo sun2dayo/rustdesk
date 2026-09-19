@@ -12,11 +12,11 @@ name: NovaDX Windows
 on:
   workflow_dispatch:
     inputs:
-      conn-type:
-        description: "incoming (cliente de suporte) ou outgoing (técnico)"
+      variant:
+        description: "Variante a compilar"
         type: choice
-        options: [incoming, outgoing]
-        default: incoming
+        options: [todas, suporte, agente, tecnico]
+        default: todas
   push:
     tags:
       - "novadx-*"
@@ -29,13 +29,23 @@ env:
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
   VERSION: "1.4.9"
   # Configuração embutida (lida por option_env! em src/common.rs)
-  NOVADX_APP_NAME: "NovaDX"
   NOVADX_SERVER: "remoto.novadx.pt"
+  NOVADX_API_SERVER: "https://remoto.novadx.pt"
   NOVADX_KEY: "97oJGE5kHkjNPE+KuQ2Ctu9+0rGbfJvXFxwfP9g9rM4="
-  NOVADX_CONN_TYPE: ${{ inputs.conn-type || 'incoming' }}
   WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
 
 jobs:
+  variants:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          v="${{ inputs.variant || 'todas' }}"
+          if [ "$v" = "todas" ]; then v='["suporte","agente","tecnico"]'; else v="[\"$v\"]"; fi
+          echo "matrix=$v" >> "$GITHUB_OUTPUT"
+
   generate-bridge:
     uses: ./.github/workflows/bridge.yml
 
@@ -49,9 +59,16 @@ jobs:
       target_version: Windows10
 
   build-windows-x64:
-    name: NovaDX Windows x64 (${{ inputs.conn-type || 'incoming' }})
-    needs: [build-RustDeskTempTopMostWindow, generate-bridge]
+    name: NovaDX ${{ matrix.variant }} (Windows x64)
+    needs: [variants, build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.variants.outputs.matrix) }}
+    env:
+      NOVADX_VARIANT: ${{ matrix.variant }}
+      NOVADX_PORTABLE_DIR: novadx-${{ matrix.variant }}
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -201,9 +218,12 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./SignOutput
-          suffix=""
-          [ "$NOVADX_CONN_TYPE" = "outgoing" ] && suffix="-Tecnico"
-          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/NovaDX-Assistencia${suffix}-${VERSION}.exe"
+          case "$NOVADX_VARIANT" in
+            agente)  name="NovaDX-Agente" ;;
+            tecnico) name="NovaDX-Tecnico" ;;
+            *)       name="NovaDX-Assistencia" ;;
+          esac
+          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/${name}-${VERSION}.exe"
 
       - name: Sign final executable
         if: env.WINDOWS_PFX_BASE64 != ''
@@ -216,12 +236,12 @@ jobs:
 
       - name: Checksums
         shell: bash
-        run: cd SignOutput && sha256sum *.exe | tee SHA256SUMS.txt
+        run: cd SignOutput && sha256sum *.exe | tee "SHA256SUMS-${NOVADX_VARIANT}.txt"
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: novadx-windows-x64-${{ env.NOVADX_CONN_TYPE }}
+          name: novadx-windows-x64-${{ matrix.variant }}
           path: SignOutput/
 
       - name: Publish Release
@@ -231,8 +251,11 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: NovaDX Assistência ${{ github.ref_name }}
           body: |
-            Cliente NovaDX Assistência Remota (Windows x64), baseado em RustDesk ${{ env.VERSION }} (AGPL-3.0).
+            Clientes NovaDX (Windows x64), baseados em RustDesk ${{ env.VERSION }} (AGPL-3.0).
+            - NovaDX-Assistencia: suporte pontual (portátil, ID + senha temporária)
+            - NovaDX-Agente: acesso permanente (instalar com deploy-agente.ps1)
+            - NovaDX-Tecnico: equipa NovaDX (só saída, login na consola)
             Servidor: ${{ env.NOVADX_SERVER }}
           files: |
             ./SignOutput/*.exe
-            ./SignOutput/SHA256SUMS.txt
+            ./SignOutput/SHA256SUMS-*.txt

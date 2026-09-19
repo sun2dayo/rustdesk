@@ -2081,19 +2081,25 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
 }
 
 // NovaDX: configuração embutida no binário (equivalente ao custom.txt assinado do
-// gerador Pro, sem depender da assinatura da RustDesk). Os valores podem ser
-// alterados em tempo de compilação pelas variáveis NOVADX_* do workflow.
-const NOVADX_APP_NAME: &str = match option_env!("NOVADX_APP_NAME") {
+// gerador Pro, sem depender da assinatura da RustDesk). Os valores são fixados em
+// tempo de compilação pelas variáveis NOVADX_* do workflow novadx-windows.yml.
+//
+// Variantes (NOVADX_VARIANT):
+//   suporte - portátil, só entrada; o cliente dita ID + senha temporária
+//   agente  - instalado como serviço, só entrada; acesso não assistido com a
+//             senha permanente definida por posto (--password) na instalação
+//   tecnico - só saída, para a equipa NovaDX; login e livro de endereços na consola
+const NOVADX_VARIANT: &str = match option_env!("NOVADX_VARIANT") {
     Some(v) => v,
-    None => "NovaDX",
-};
-const NOVADX_CONN_TYPE: &str = match option_env!("NOVADX_CONN_TYPE") {
-    Some(v) => v,
-    None => "incoming",
+    None => "suporte",
 };
 const NOVADX_SERVER: &str = match option_env!("NOVADX_SERVER") {
     Some(v) => v,
     None => "remoto.novadx.pt",
+};
+const NOVADX_API_SERVER: &str = match option_env!("NOVADX_API_SERVER") {
+    Some(v) => v,
+    None => "https://remoto.novadx.pt",
 };
 const NOVADX_KEY: &str = match option_env!("NOVADX_KEY") {
     Some(v) => v,
@@ -2101,18 +2107,12 @@ const NOVADX_KEY: &str = match option_env!("NOVADX_KEY") {
 };
 
 fn novadx_builtin_config() -> HashMap<String, serde_json::Value> {
-    let incoming = NOVADX_CONN_TYPE == "incoming";
-    let yn = |b: bool| if b { "Y" } else { "N" };
-    let config = serde_json::json!({
-        "app-name": NOVADX_APP_NAME,
-        "conn-type": NOVADX_CONN_TYPE,
-        "disable-settings": yn(incoming),
-        "disable-ab": "Y",
-        "disable-account": "Y",
+    // O nome da app não pode ter espaços: é usado sem aspas em `sc create` e `taskkill`.
+    let mut config = serde_json::json!({
         "override-settings": {
             "custom-rendezvous-server": NOVADX_SERVER,
             "relay-server": NOVADX_SERVER,
-            "api-server": "",
+            "api-server": NOVADX_API_SERVER,
             "key": NOVADX_KEY,
             "hide-server-settings": "Y",
             "hide-proxy-settings": "Y",
@@ -2122,6 +2122,49 @@ fn novadx_builtin_config() -> HashMap<String, serde_json::Value> {
             "enable-check-update": "N",
         },
     });
+    let variant = match NOVADX_VARIANT {
+        "agente" => serde_json::json!({
+            "app-name": "NovaDXAgente",
+            "conn-type": "incoming",
+            "disable-settings": "Y",
+            "disable-ab": "Y",
+            "disable-account": "Y",
+            "override-settings": {
+                "approve-mode": "password",
+                "verification-method": "use-permanent-password",
+                "hide-stop-service": "Y",
+                "disable-change-id": "Y",
+                // o script de instalação define a senha do posto com --password
+                "allow-command-line-settings-when-settings-disabled": "Y",
+            },
+        }),
+        "tecnico" => serde_json::json!({
+            "app-name": "NovaDXTecnico",
+            "conn-type": "outgoing",
+        }),
+        _ => serde_json::json!({
+            "app-name": "NovaDX",
+            "conn-type": "incoming",
+            "disable-settings": "Y",
+            "disable-ab": "Y",
+            "disable-account": "Y",
+            "override-settings": {
+                "verification-method": "use-temporary-password",
+            },
+        }),
+    };
+    if let (Some(base), Some(extra)) = (config.as_object_mut(), variant.as_object()) {
+        for (k, v) in extra {
+            match (base.get_mut(k), v) {
+                (Some(serde_json::Value::Object(b)), serde_json::Value::Object(e)) => {
+                    b.extend(e.clone());
+                }
+                _ => {
+                    base.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
     serde_json::from_value(config).unwrap_or_default()
 }
 

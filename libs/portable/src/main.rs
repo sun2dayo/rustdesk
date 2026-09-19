@@ -17,7 +17,11 @@ const APP_METADATA: &[u8] = include_bytes!("../app_metadata.toml");
 const APP_METADATA: &[u8] = &[];
 const APP_METADATA_CONFIG: &str = "meta.toml";
 const META_LINE_PREFIX_TIMESTAMP: &str = "timestamp = ";
-const APP_PREFIX: &str = "novadx-assistencia";
+// NovaDX: pasta de extração por variante (não colide com o RustDesk oficial nem entre variantes)
+const APP_PREFIX: &str = match option_env!("NOVADX_PORTABLE_DIR") {
+    Some(v) => v,
+    None => "novadx-assistencia",
+};
 const APPNAME_RUNTIME_ENV_KEY: &str = "RUSTDESK_APPNAME";
 #[cfg(windows)]
 const SET_FOREGROUND_WINDOW_ENV_KEY: &str = "SET_FOREGROUND_WINDOW";
