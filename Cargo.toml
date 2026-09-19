@@ -210,6 +210,7 @@ exclude = ["vdi/host", "examples/custom_plugin"]
 libxdo-sys = { path = "libs/libxdo-sys-stub" }
 
 [package.metadata.winres]
+CompanyName = "NovaDX"
 LegalCopyright = "Copyright © 2026 NovaDX. Baseado em RustDesk © Purslane Tech Pte. Ltd. (AGPL-3.0)"
 ProductName = "NovaDX Assistência Remota"
 FileDescription = "NovaDX Assistência Remota"

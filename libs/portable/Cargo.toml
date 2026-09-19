@@ -26,6 +26,7 @@ windows = { version = "0.61", features = [
 native-windows-gui = {version = "1.0", default-features = false, features = ["animation-timer", "image-decoder"]}
 
 [package.metadata.winres]
+CompanyName = "NovaDX"
 LegalCopyright = "Copyright © 2026 NovaDX. Baseado em RustDesk © Purslane Tech Pte. Ltd. (AGPL-3.0)"
 ProductName = "NovaDX Assistência Remota"
 OriginalFilename = "NovaDX-Assistencia.exe"
