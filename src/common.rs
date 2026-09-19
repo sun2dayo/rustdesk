@@ -2080,7 +2080,53 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+// NovaDX: configuração embutida no binário (equivalente ao custom.txt assinado do
+// gerador Pro, sem depender da assinatura da RustDesk). Os valores podem ser
+// alterados em tempo de compilação pelas variáveis NOVADX_* do workflow.
+const NOVADX_APP_NAME: &str = match option_env!("NOVADX_APP_NAME") {
+    Some(v) => v,
+    None => "NovaDX",
+};
+const NOVADX_CONN_TYPE: &str = match option_env!("NOVADX_CONN_TYPE") {
+    Some(v) => v,
+    None => "incoming",
+};
+const NOVADX_SERVER: &str = match option_env!("NOVADX_SERVER") {
+    Some(v) => v,
+    None => "remoto.novadx.pt",
+};
+const NOVADX_KEY: &str = match option_env!("NOVADX_KEY") {
+    Some(v) => v,
+    None => "97oJGE5kHkjNPE+KuQ2Ctu9+0rGbfJvXFxwfP9g9rM4=",
+};
+
+fn novadx_builtin_config() -> HashMap<String, serde_json::Value> {
+    let incoming = NOVADX_CONN_TYPE == "incoming";
+    let yn = |b: bool| if b { "Y" } else { "N" };
+    let config = serde_json::json!({
+        "app-name": NOVADX_APP_NAME,
+        "conn-type": NOVADX_CONN_TYPE,
+        "disable-settings": yn(incoming),
+        "disable-ab": "Y",
+        "disable-account": "Y",
+        "override-settings": {
+            "custom-rendezvous-server": NOVADX_SERVER,
+            "relay-server": NOVADX_SERVER,
+            "api-server": "",
+            "key": NOVADX_KEY,
+            "hide-server-settings": "Y",
+            "hide-proxy-settings": "Y",
+            "hide-websocket-settings": "Y",
+            "hide-help-cards": "Y",
+            "allow-auto-update": "N",
+            "enable-check-update": "N",
+        },
+    });
+    serde_json::from_value(config).unwrap_or_default()
+}
+
 pub fn load_custom_client() {
+    apply_custom_client(novadx_builtin_config());
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
@@ -2192,13 +2238,16 @@ pub fn read_custom_client(config: &str) {
         log::error!("Failed to dec custom client config");
         return;
     };
-    let Ok(mut data) =
+    let Ok(data) =
         serde_json::from_slice::<std::collections::HashMap<String, serde_json::Value>>(&data)
     else {
         log::error!("Failed to parse custom client config");
         return;
     };
+    apply_custom_client(data);
+}
 
+fn apply_custom_client(mut data: HashMap<String, serde_json::Value>) {
     if let Some(app_name) = data.remove("app-name") {
         if let Some(app_name) = app_name.as_str() {
             *config::APP_NAME.write().unwrap() = app_name.to_owned();

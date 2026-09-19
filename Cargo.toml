@@ -210,10 +210,10 @@ exclude = ["vdi/host", "examples/custom_plugin"]
 libxdo-sys = { path = "libs/libxdo-sys-stub" }
 
 [package.metadata.winres]
-LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."
-ProductName = "RustDesk"
-FileDescription = "RustDesk Remote Desktop"
-OriginalFilename = "rustdesk.exe"
+LegalCopyright = "Copyright © 2026 NovaDX. Baseado em RustDesk © Purslane Tech Pte. Ltd. (AGPL-3.0)"
+ProductName = "NovaDX Assistência Remota"
+FileDescription = "NovaDX Assistência Remota"
+OriginalFilename = "NovaDX-Assistencia.exe"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1"
