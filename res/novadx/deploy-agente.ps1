@@ -40,8 +40,9 @@ function Test-Admin {
 }
 
 function New-StrongPassword([int]$Length = 20) {
-    # Sem caracteres ambíguos (0/O, 1/l/I) para ditar ao telefone se for preciso.
-    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_.!@#%+='.ToCharArray()
+    # Sem caracteres ambíguos (0/O, 1/l/I) e só símbolos seguros em URL, para o link
+    # novadxtecnico://connection/new/<ID>?password=<senha> do KeePassXC.
+    $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_.'.ToCharArray()
     $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
     $bytes = New-Object byte[] ($Length * 4)
     $rng.GetBytes($bytes)
